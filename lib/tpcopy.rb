@@ -33,10 +33,10 @@ module Tpcopy
       FileUtils::mkdir_p @railsroot.join('app', 'views', 'layouts', @tpl_folder)
 
       # start to separate specific css/js
-      process_containers
       process_js
       process_css
       process_images
+      process_containers
 
       # write to layout file
       namejs = "#{File.basename(source_path).sub!(/\.(html|htm)/,'')}"
@@ -93,11 +93,14 @@ module Tpcopy
         copy_file "#{abs_folder}/#{script['src']}",
           "#{@railsroot.join('app', 'assets', @tpl_folder)}/#{script['src']}"
         buff << "//= require #{script['src']}\n"
-        script.add_next_sibling(
-          @template.document
-            .create_cdata("<%= javascript_include_tag '#{@tpl_folder}/#{namejs}' %>")
-        ) if i == 0
-        script.remove
+        if i == 0
+          script.replace(
+            @template.document
+              .create_cdata("<%= javascript_include_tag '#{@tpl_folder}/#{namejs}' %>")
+          )
+        else
+          script.remove
+        end
       end
       create_file appjs do
         buff
@@ -119,11 +122,14 @@ module Tpcopy
             "#{@railsroot.join('app', 'assets', @tpl_folder)}/#{link['href']}"
         end
         buff << " *= require #{link['href']}\n"
-        link.add_next_sibling(
-          @template.document
-            .create_cdata("<%= stylesheet_link_tag '#{@tpl_folder}/#{namecss}' %>")
-        ) if i == 0
-        link.remove
+        if i == 0
+          link.replace(
+            @template.document
+              .create_cdata("<%= stylesheet_link_tag '#{@tpl_folder}/#{namecss}' %>")
+          )
+        else
+          link.remove
+        end
       end
       buff << " */"
       create_file appcss do
@@ -145,12 +151,20 @@ module Tpcopy
     def process_containers
       @template.containers.each_key do |key|
         next if @template.containers[key].nil?
-        create_file @railsroot.join('app', 'views', @tpl_folder, 'shared', "_#{key}.html.erb") do
-          @template.containers[key].to_html
+        if key == :content
+          targetfile = @railsroot.join('app', 'views', @tpl_folder, "#{File.basename(source_path)}.erb")
+        else
+          targetfile = @railsroot.join('app', 'views', @tpl_folder, 'shared', "_#{key}.html.erb")
+        end
+        puts "#{key} #{targetfile}"
+        create_file targetfile do
+          CGI.unescapeHTML(@template.containers[key].to_html)
         end
         @template.containers[key].replace(
           @template.document.create_cdata(
-            "<%=render('#{@tpl_folder}/shared/#{key}')%>"
+            key == :content ?
+              "<%=yield%>" :
+              "<%=render('#{@tpl_folder}/shared/#{key}')%>"
           )
         )
       end
