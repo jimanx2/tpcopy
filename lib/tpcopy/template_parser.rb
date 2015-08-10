@@ -34,7 +34,7 @@ module Tpcopy
 Traverse depth: #{@depth} level
 Elements within traverse depth:
 SCREEN
-      elements = traverse(@document.css('body')[0], curdepth)
+      elements = traverse(@document.css('body').first, curdepth)
       print "[0] <none>\n"
       elements.each_with_index do |elem, i|
         print "[#{i+1}]#{elem[:text]}\n"
@@ -66,6 +66,7 @@ SCREEN
     def traverse(element, depth)
       out = []
       if depth < @depth
+        return out if element.node_name.nil?
         unless element.node_name.match(/body|text|script|comment/)
           out.push({
             :text =>
