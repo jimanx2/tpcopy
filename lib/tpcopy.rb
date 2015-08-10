@@ -12,6 +12,7 @@ module Tpcopy
 
     class_option :railsroot, :default => '.'
     class_option :verbose, :default => false
+    class_option :depth, :default => 4
     argument :source_path
     attr_accessor :template, :tpl_folder, :railsroot
 
@@ -21,7 +22,7 @@ module Tpcopy
 
     desc "import", "Import an HTML file into rails .erb"
     def import
-      @template = TemplateParser.new(source_path)
+      @template = TemplateParser.new(source_path, options[:depth])
       @tpl_folder = source_path.split('/')[0..-2].last
       @railsroot = Pathname.new(File.expand_path(options[:railsroot]))
 
@@ -32,6 +33,7 @@ module Tpcopy
       FileUtils::mkdir_p @railsroot.join('app', 'views', 'layouts', @tpl_folder)
 
       # start to separate specific css/js
+      process_containers
       process_js
       process_css
       process_images
@@ -136,6 +138,21 @@ module Tpcopy
         copy_file "#{abs_folder}/#{image['src']}",
           "#{@railsroot.join('app', 'assets', @tpl_folder)}/#{image['src']}"
         image['src'] = "<%=asset_path('#{image['src']}')%>"
+      end
+    end
+
+    private
+    def process_containers
+      @template.containers.each_key do |key|
+        next if @template.containers[key].nil?
+        create_file @railsroot.join('app', 'views', @tpl_folder, 'shared', "_#{key}.html.erb") do
+          @template.containers[key].to_html
+        end
+        @template.containers[key].replace(
+          @template.document.create_cdata(
+            "<%=render('#{@tpl_folder}/shared/#{key}')%>"
+          )
+        )
       end
     end
   end
