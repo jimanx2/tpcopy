@@ -139,7 +139,8 @@ module Tpcopy
 
     private
     def process_images
-      @template.images.each do |image|
+      @template.images.each do |image
+        next if image['src'].include? 'http:'
         abs_folder = File.expand_path(File.dirname(source_path))
         copy_file "#{abs_folder}/#{image['src']}",
           "#{@railsroot.join('app', 'assets', @tpl_folder)}/#{image['src']}"
